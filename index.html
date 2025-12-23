@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-Notulen MGBK SMP Negeri dan Swasta Kota Balikpapan</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- JS PDF and html2canvas CDN for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Style untuk dokumen resmi */
+        .notulen-page {
+            /* MENGUBAH LEBAR DARI A4 (210mm) KE F4 (215.9mm) */
+            width: 215.9mm; 
+            margin: 0 auto;
+            background: white;
+            /* MARGIN BARU: 1cm atas/bawah, 2cm kiri/kanan */
+            padding: 1cm 2cm; 
+            box-shadow: 0 0 10px rgba(0 0, 0, 0.1);
+        
+    min-height: 330.2mm; /* diperbaiki dari height fixed */ /* diperbaiki dari height fixed */
+
+            page-break-after: always;
+            break-after: page;
+        }
+
+        /* Khusus untuk pengukuran tinggi (JANGAN ADA page-break & min-height) */
+        .measure-page {
+            width: 215.9mm;
+            padding: 1cm 2cm;
+            box-sizing: border-box;
+        }
+
+        .pengesahan-block {
+            margin-top: 24px;
+            min-height: 140px;
+        }
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            line-height: 1.4;
+            margin: 20px 0;
+        }
+        .notulen-table td {
+            padding: 4px 8px;
+            vertical-align: top;
+        }
+        
+        /* Style untuk daftar bernomor pada tabel (Dihadiri oleh, Susunan Kegiatan) */
+        .numbered-list {
+            list-style-type: none !important; 
+            padding-left: 0;
+            margin: 0;
+        }
+        .numbered-list li {
+            /* Menerapkan Hanging Indent (rata kiri gantung) */
+            padding-left: 1.8em; 
+            text-indent: -1.8em; 
+            text-align: justify; /* Menerapkan Justify/Rata Kanan-Kiri */
+            margin-bottom: 5px; 
+        }
+        
+        /* Style untuk perataan rata kanan-kiri (Justify) pada teks notulensi */
+        .text-justify-custom {
+            text-align: justify;
+        }
+
+        /* Hilangkan box shadow dan margin untuk proses cetak */
+        @media print {
+            body { margin: 0; padding: 0; }
+            .input-panel, .download-btn-container { display: none; }
+            .notulen-container { width: 100%; margin: 0; padding: 0; }
+            
+            .notulen-page {
+                box-shadow: none;
+                margin: 0;
+                /* MARGIN BARU UNTUK PRINT: 1cm atas/bawah, 2cm kiri/kanan */
+                padding: 1cm 2cm;
+                border: none;
+                /* Tambahkan ukuran eksplisit F4 untuk konsistensi */
+                width: 215.9mm; 
+                min-height: 330.2mm; /* diperbaiki dari height fixed */ 
+            }
+            .signature-box img {
+                display: block !important;
+                image-rendering: crisp-edges;
+                image-rendering: pixelated;
+            }
+            .signature-box a {
+                display: none !important;
+            }
+            /* Menghilangkan margin atas yang disebabkan oleh mt-[-1px] saat cetak */
+            .notulen-page.lampiran-page {
+                margin-top: 0 !important;
+                /* Padding atas harus 1cm (sama dengan margin atas) */
+                padding-top: 1cm; 
+            }
+        }
+        
+        /* ================================================= */
+        /* Gaya Kustom untuk Tata Letak Foto */
+        /* ================================================= */
+        .photo-grid-item {
+            /* Membuat container memiliki rasio horizontal (misalnya 4:3) */
+            aspect-ratio: 4 / 3; 
+            /* Memberikan tinggi yang fleksibel berdasarkan aspek rasio */
+            height: auto; 
+            overflow: hidden; 
+        }
+        
+        .photo-grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            display: block;
+        }
+        
+        /* GRID FOTO LAMPIRAN */
+        .photo-grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            row-gap: 6px;        /* jarak vertikal rapat */
+            column-gap: 8px;     /* jarak horizontal */
+            margin-top: 6px;
+        }
+        
+        /* ITEM FOTO */
+        .photo-grid-item {
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+        }
+
+        .photo-grid-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+ 
+.page-break { page-break-before: always; }
+
+/* ================================================= */
+/* FORCE TTD RENDERING AGAR TAJAM DI CANVAS & PDF */
+/* ================================================= */
+.signature-box img {
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* ================================================= */
+/* INTI PEMBAHASAN – RATA KANAN KIRI & WRAP RAPI */
+/* ================================================= */
+.inti-pembahasan-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* penting agar teks mengikuti lebar tabel */
+}
+
+.inti-pembahasan-table th,
+.inti-pembahasan-table td {
+    border: 1px solid #555;
+    padding: 6px 8px;
+    vertical-align: top;
+}
+
+/* FINAL – FIX BARIS TERAKHIR AGAR TIDAK RENGGANG */
+.inti-pembahasan-table td.uraian {
+    text-align: justify;
+    text-align-last: left;   /* ⬅️ kunci utama */
+    word-spacing: normal;
+    line-height: 1.5;
+    hyphens: auto;
+}
+
+.inti-pembahasan-table {
+    table-layout: fixed;
+}
+
+.inti-pembahasan-table td.uraian {
+    text-align: justify;
+    line-height: 1.5;
+}
+
+.inti-pembahasan-table td.uraian p {
+    width: 100%;
+    display: block;
+    text-align: justify;
+    margin-bottom: 6px;
+}
+
+.inti-pembahasan-table p {
+    margin: 0 0 6px 0;
+    text-align: justify;
+}
+
+.inti-pembahasan-table td.uraian p {
+    margin: 0 0 6px 0;
+    text-align: justify
+    white-space: normal;
+}
+
+.inti-pembahasan-table th:nth-child(2),
+.inti-pembahasan-table td:nth-child(2) {
+    width: calc(100% - 48px);
+}
+
+.inti-pembahasan-table td.uraian {
+    text-align: justify;
+    text-align-last: left;   /* ⬅️ kunci solusi */
+}
+
+.inti-pembahasan-table td.uraian {
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+}
+
+.inti-pembahasan-table p {
+    margin: 0 0 6px 0;
+    text-align: inherit;
+}
+
+/* PERBAIKAN JARAK BARIS TERAKHIR */
+td.uraian {
+    text-align: justify;
+    text-align-last: left;     /* ⬅️ INI KUNCI UTAMA */
+    word-spacing: normal;      /* ⬅️ cegah spasi melebar */
+    line-height: 1.5;
+}
+
+td.uraian {
+    text-align: justify
+    text-align-last: left
+    word-spacing: normal
+}
+
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8">
+
+    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0">
+        
+        <!-- Panel Input (Kiri) -->
+        <div class="input-panel w-full lg:w-1/3 bg-white p-6 rounded-xl shadow-lg h-full sticky top-8">
+            <h2 class="text-xl font-bold mb-4 text-indigo-700">e-Notulen MGBK SMP</h2>
+            <p class="text-sm text-gray-600 mb-6">Developed by Galih MGBK SMP Balikpapan</p>
+
+            <!-- FORM START -->
+            <form id="notulenForm" class="space-y-4">
+
+                <!-- 1. Kop Surat -->
+                <div>
+                    <label for="kopSurat" class="block text-sm font-medium text-gray-700">1. Upload Kop Surat (.jpg/.jpeg)</label>
+                    <input type="file" id="kopSurat" accept=".jpg, .jpeg" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 rounded-lg border border-gray-300 p-1">
+                </div>
+
+                <!-- 2. Hari & Tanggal -->
+                <div>
+                    <label for="tanggal" class="block text-sm font-medium text-gray-700">2. Hari dan Tanggal Pertemuan</label>
+                    <input type="date" id="tanggal" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+                </div>
+
+                <!-- 3. Tempat -->
+                <div>
+                    <label for="tempat" class="block text-sm font-medium text-gray-700">3. Tempat Pertemuan</label>
+                    <select id="tempat" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+
+                <!-- 4. Waktu -->
+                <div>
+                    <label for="waktu" class="block text-sm font-medium text-gray-700">4. Waktu (Contoh: 13:30)</label>
+                    <input type="time" id="waktu" step="60" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2">
+                    <p class="text-xs text-gray-500 mt-1">Hasil: <span id="waktuPreview">13.30 WITA s/d selesai</span></p>
+                </div>
+
+                <!-- 5. Dihadiri oleh -->
+                <fieldset>
+                    <legend class="block text-sm font-medium text-gray-700">5. Dihadiri oleh (Kepala/Wakil/Koordinator adalah pilihan eksklusif)</legend>
+                    <div id="dihadiriCheckboxes" class="mt-2 space-y-2">
+                        <!-- Checkboxes generated by JS -->
+                    </div>
+                </fieldset>
+                
+                <!-- 6. Tema -->
+                <div>
+                    <label for="tema" class="block text-sm font-medium text-gray-700">6. Tema Pertemuan (Maks 200 Karakter)</label>
+                    <textarea id="tema" rows="2" maxlength="200" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 border p-2"></textarea>
+                </div>
+
+                <!-- 7. Pemateri -->
+                <div class="border p-4 rounded-lg bg-gray-50">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">7. Pemateri</label>
+                    <div id="pemateriContainer" class="space-y-3">
+                        <!-- Dynamic Pemateri Input -->
+                    </div>
+                    <button type="button" id="addPemateriBtn" class="mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        Tambah Pemateri
+                    </button>
+                </div>
+
+                <!-- 8. Pembawa Acara -->
+                <div class="border p-4 rounded-lg bg-gray-50">
+                    <label for="pembawaAcaraNama" class="block text-sm font-medium text-gray-700">8. Pembawa Acara (Maks 200 Karakter)</label>
+                    <input type="text" id="pembawaAcaraNama" maxlength="200" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2" placeholder="Nama Pembawa Acara">
+                    <label for="pembawaAcaraAsal" class="block text-sm font-medium text-gray-700 mt-2">Keterangan Asal Sekolah</label>
+                    <select id="pembawaAcaraAsal" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+
+                <!-- 9. Pembaca Doa -->
+                <div class="border p-4 rounded-lg bg-gray-50">
+                    <label for="pembacaDoaNama" class="block text-sm font-medium text-gray-700">9. Pembaca Doa (Maks 200 Karakter)</label>
+                    <input type="text" id="pembacaDoaNama" maxlength="200" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2" placeholder="Nama Pembaca Doa">
+                    <label for="pembacaDoaAsal" class="block text-sm font-medium text-gray-700 mt-2">Keterangan Asal Sekolah</label>
+                    <select id="pembacaDoaAsal" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2">
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+
+                <!-- 10. Notulis Pertemuan -->
+                <div class="bg-indigo-50 p-4 rounded-lg">
+                    <label class="block text-sm font-medium text-gray-700">10. Notulis Pertemuan (Otomatis)</label>
+                    <!-- Menggunakan format penulisan yang diminta: Huruf Awal Kapital -->
+                    <p class="mt-1 text-sm font-semibold">Windah Ayu Sanu, S.Pd.</p> 
+                    <p class="text-xs text-gray-600">Asal Sekolah: SMP Negeri 4 Balikpapan</p>
+                </div>
+
+                <!-- 11. Tambahan Susunan Kegiatan -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">11. Tambahan Susunan Kegiatan</label>
+                    <div id="tambahanKegiatanCheckboxes" class="mt-2 space-y-2">
+                        <div class="flex items-center">
+                            <input id="halalBihalal" type="checkbox" name="tambahanKegiatan" value="Halal Bihalal / Bersalam-salaman" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="halalBihalal" class="ml-3 text-sm text-gray-700">Halal Bihalal / Bersalam-salaman</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="cinderamata" type="checkbox" name="tambahanKegiatan" value="Penyerahan Cinderamata" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="cinderamata" class="ml-3 text-sm text-gray-700">Penyerahan Cinderamata</label>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Susunan acara inti akan otomatis terisi dan menyesuaikan.</p>
+                </div>
+
+                <!-- 12. Inti Pembahasan -->
+                <div class="border p-4 rounded-lg bg-gray-50">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">12. Inti Pembahasan (Notulensi)</label>
+                    <div id="intiPembahasanContainer" class="space-y-3">
+                        <!-- Dynamic Inti Pembahasan Input -->
+                    </div>
+                    <button type="button" id="addIntiPembahasanBtn" class="mt-3 text-sm font-medium text-indigo-600 hover:text-indigo-800 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        Tambah Inti Pembahasan
+                    </button>
+                </div>
+
+                <!-- 13. Foto Lampiran -->
+                <div class="border p-4 rounded-lg bg-gray-50">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">13. Lampiran Foto Kegiatan</label>
+                    <input type="file" id="lampiranFoto" accept="image/jpeg, image/jpg" multiple class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 rounded-lg border border-gray-300 p-1">
+                    <div id="photoPreviewThumbs" class="mt-3 flex flex-wrap gap-2"></div>
+                    <p id="photoCount" class="text-xs text-gray-500 mt-2 hidden"></p>
+                </div>
+
+            </form>
+
+            <!-- Tombol Unduh PDF -->
+            <div class="download-btn-container mt-8 pt-4 border-t">
+                <button id="downloadPdfBtn" class="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition duration-150 shadow-md">
+                    Unduh Dokumen Notulen (PDF)
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Preview (Kanan) -->
+        <div class="notulen-container w-full lg:w-2/3">
+            <div id="documentPreview" class="bg-white shadow-xl border border-gray-300 rounded-lg">
+                <!-- Konten Notulen Akan Dimuat di Sini -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Sekolah
+        const SCHOOLS = [
+            "SMP Negeri 1 Balikpapan", "SMP Negeri 2 Balikpapan", "SMP Negeri 3 Balikpapan", "SMP Negeri 4 Balikpapan", 
+            "SMP Negeri 5 Balikpapan", "SMP Negeri 6 Balikpapan", "SMP Negeri 7 Balikpapan", "SMP Negeri 8 Balikpapan", 
+            "SMP Negeri 9 Balikpapan", "SMP Negeri 10 Balikpapan", "SMP Negeri 11 Balikpapan", "SMP Negeri 12 Balikpapan", 
+            "SMP Negeri 13 Balikpapan", "SMP Negeri 14 Balikpapan", "SMP Negeri 15 Balikpapan", "SMP Negeri 16 Balikpapan", 
+            "SMP Negeri 17 Balikpapan", "SMP Negeri 18 Balikpapan", "SMP Negeri 19 Balikpapan", "SMP Negeri 20 Balikpapan", 
+            "SMP Negeri 21 Balikpapan", "SMP Negeri 22 Balikpapan", "SMP Negeri 23 Balikpapan", "SMP Negeri 24 Balikpapan", 
+            "SMP Negeri 25 Balikpapan", 
+            "SMP Patra Dharma 1 Balikpapan", "SMP Patra Dharma 2 Balikpapan", "SMP Nasional KPS Balikpapan", 
+            "SMP Katholik Santo Mikail Balikpapan", "SMPS Integral Luqman Al Hakim Balikpapan", "SMP Kartika V-1 Balikpapan", 
+            "SMPIT Istiqamah YPAIT Balikpapan", "SMP PGRI 2 Balikpapan", "SMP PGRI 4 Balikpapan", "SMP PGRI 7 Balikpapan", 
+            "SMP IT Modern Balikpapan Islamic School", "SMP Muhammadiyah 2 Balikpapan", "SMP Muhammadiyah 3 Al Mujahidin", 
+            "SMP Al-Hasan Balikpapan", "SMP IT Al-Auliya Balikpapan", "SMP Ibnu Hajar Comprehensive Balikpapan", 
+            "SMP Alam Balikpapan", "SMP Islam Istiqomah Balikpapan", "SMP Bina Bersama Balikpapan", 
+            "SMP IT Mutiara Rahmah Balikpapan", "Al Imam Islamic School Balikpapan"
+        ];
+
+        // Data Checkbox Dihadiri Oleh
+        const DIHADIRI_OPTIONS = [
+            { id: 'pendidikan', label: 'Bidang PSMP Disdikbud', value: 'Bidang PSMP Disdikbud', exclusiveGroup: 'none' },
+            { id: 'kepala', label: 'Kepala (sesuai Tempat)', value: 'Kepala', exclusiveGroup: 'Sekolah' },
+            { id: 'wakilKepala', label: 'Wakil Kepala (sesuai Tempat)', value: 'Wakil Kepala', exclusiveGroup: 'Sekolah' },
+            { id: 'koordinatorUrusan', label: 'Koordinator Urusan (sesuai Tempat)', value: 'Koordinator Urusan', exclusiveGroup: 'Sekolah' },
+        ];
+        
+        // State Global (Default values for initial rendering)
+        let notulenState = {
+            kopSuratURL: 'https://placehold.co/800x200/cccccc/333333?text=KOP+SURAT+MGBK+SMP',
+            tanggal: new Date().toISOString().split('T')[0],
+            tempat: SCHOOLS[0],
+            waktu: '13:30',
+            dihadiriOleh: {
+                pendidikan: false, 
+                kepala: false, 
+                wakilKepala: false,
+                koordinatorUrusan: false,
+            },
+            tema: '',
+            pemateri: [{ nama: '', keterangan: '' }],
+            intiPembahasan: [],
+            tambahanSusunan: {
+                halalBihalal: false,
+                cinderamata: false,
+            },
+            pembawaAcara: { nama: '', asal: SCHOOLS[0] },
+            pembacaDoa: { nama: '', asal: SCHOOLS[0] },
+            // Menambahkan beberapa placeholder foto untuk pengujian tata letak
+            lampiranPhotos: [
+            ], 
+        };
+
+        // Konstanta Data Notulis dan Ketua (Diubah format penulisan nama notulis)
+        const NOTULIS = { nama: 'WINDAH AYU SANU, S.Pd.', nip: '199609092022212001', jabatan: 'SEKRETARIS II MGBK SMP', sekolah: 'SMP Negeri 4 Balikpapan' };
+        const KETUA = { nama: 'G A L I H', nip: '199305242019031009', jabatan: 'KETUA MGBK SMP', pangkat: 'PENATA MUDA TINGKAT I' };
+        const STAMP_URL = 'https://i.postimg.cc/MnWcJXnD/STEMPEL-MGBK.png';
+        const SIGNATURE_URL = 'https://i.postimg.cc/0M8sN3Ds/Windah-TTD.png';
+
+        // Konstanta untuk perhitungan PDF (dalam mm)
+        const F4_WIDTH_MM = 215.9;
+        const F4_HEIGHT_MM = 330.2; // Tinggi kertas F4 (folio) dalam mm
+        const F4_FORMAT = [F4_WIDTH_MM, F4_HEIGHT_MM]; 
+        // Konstanta tinggi halaman untuk auto pagination (px)
+        const PAGE_HEIGHT_PX = 1150; // aman untuk F4 + margin
+
+        // Konstanta untuk foto
+        const PHOTOS_PER_PAGE = 6; // Maksimal 6 foto per halaman
+
+        function formatTanggal(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jum\'at', 'Sabtu'];
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `${dayName}, ${day} ${month} ${year}`;
+        }
+
+        function getDihadiriOlehText(tempat) {
+            const list = [];
+            
+            // Komponen Eksklusif Sekolah (Kepala/Wakil/Koordinator)
+            let sekolahEksklusifText = '';
+            let sekolahRole = '';
+            if (notulenState.dihadiriOleh.kepala) {
+                sekolahRole = 'Kepala';
+            } else if (notulenState.dihadiriOleh.wakilKepala) {
+                sekolahRole = 'Wakil Kepala';
+            } else if (notulenState.dihadiriOleh.koordinatorUrusan) {
+                sekolahRole = 'Koordinator Urusan';
+            }
+            if (sekolahRole) {
+                 sekolahEksklusifText = `${sekolahRole} ${tempat}`;
+            }
+            
+            // Urutan Dihadiri Oleh:
+            
+            // 1. Bidang PSMP Disdikbud (Jika dipilih)
+            if (notulenState.dihadiriOleh.pendidikan) {
+                list.push('Bidang PSMP Disdikbud');
+            }
+            
+            // 2. Pengawas Pendamping MGBK
+            list.push("Pengawas Pendamping MGBK");
+
+            // 3. Kepala/Wakil/Koordinator Sekolah (Jika ada yang dipilih) - POSISI BARU
+            if (sekolahEksklusifText) {
+                list.push(sekolahEksklusifText);
+            }
+
+            // 4. Ketua MGBK
+            list.push("Ketua MGBK");
+
+            // 5. Pengurus Inti dan Koordinator Bidang MGBK
+            list.push("Pengurus Inti dan Koordinator Bidang MGBK");
+
+            // 6. Anggota MGBK
+            list.push("Anggota MGBK");
+            
+            // Menghasilkan daftar dengan penomoran manual
+            return list.map((item, index) => 
+                `<li>${index + 1}. ${item}</li>`
+            ).join('');
+        }
+
+        function getSusunanAcara(tambahanSusunan) {
+            // Susunan kegiatan tetap sesuai permintaan pengguna
+            const susunanTetap = [
+                "Pembukaan",
+                "Menyanyikan Lagu Indonesia Raya",
+                "Pembacaan Doa",
+                "Sambutan",
+                "Foto Bersama",
+                "Penyampaian Materi Oleh Narasumber",
+                "Tanya Jawab"
+            ];
+            
+            // Filter tambahan agar tidak terjadi duplikasi jika ada.
+            const additionalItems = [];
+            if (tambahanSusunan.cinderamata) {
+                additionalItems.push("Penyerahan Cinderamata");
+            }
+            // Penutup wajib setelah Tanya Jawab
+            additionalItems.push("Penutup"); 
+
+            if (tambahanSusunan.halalBihalal) {
+                additionalItems.push("Halal Bihalal / Bersalam-salaman");
+            }
+            
+            const finalSusunan = [...susunanTetap, ...additionalItems];
+
+            // Menghasilkan daftar dengan penomoran manual
+            return finalSusunan.map((item, index) => 
+                `<li>${index + 1}. ${item}</li>`
+            ).join('');
+        }
+        
+
+        function getIntiPembahasanTable() {
+            if (notulenState.intiPembahasan.length === 0) {
+                return '<p class="text-sm text-center text-gray-500 italic">Tidak ada inti pembahasan yang dimasukkan.</p>';
+            }
+            
+            // Generate table rows for Inti Pembahasan
+            const rows = notulenState.intiPembahasan.map((item, index) => {
+                const itemContent = (item.isi || '...')
+                    .split('\n')
+                    .map(p => `<p>${p}</p>`)
+                    .join('');
+
+                return `
+                    <tr>
+                        <td class="p-2 border border-gray-500 w-12 text-center align-top">
+                            ${index + 1}.
+                        </td>
+                        <td class="uraian" <td class="uraian">
+                            ${itemContent}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                <div class="mb-12">
+                    <h3 class="font-bold text-base mb-2">Inti Pembahasan :</h3>
+                    <table class="inti-pembahasan-table text-sm">
+                        <thead>
+                            <tr class="bg-gray-100 font-bold">
+                                <th class="p-2 border border-gray-500 w-12 text-center">No.</th>
+                                <th class="p-2 border border-gray-500" style="text-align: center;">Uraian Inti Pembahasan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        /**
+         * Mengembalikan HTML Kop Surat dengan atau tanpa garis pembatas
+         * @param {boolean} showKop - Apakah Kop Surat harus ditampilkan.
+         */
+        function getKopSuratHtml(showKop) {
+            if (!showKop) {
+                // Tambahkan div kosong sebagai spacer agar konten tidak terlalu menempel ke atas
+                return `<div class="w-full mb-6 max-h-48 object-cover"></div>`;
+            }
+            return `
+                <img id="kopSuratPreview" src="${notulenState.kopSuratURL}" alt="Kop Surat" class="w-full max-h-48 object-cover">
+                <hr class="border-t-2 border-gray-800 my-4" /> <!-- Garis Pembatas Kop Surat -->
+            `;
+        }
+        
+        /**
+         * Membagi foto ke dalam grup-grup (halaman)
+         * @returns {Array<Array<{id: string, url: string, name: string}>>} Array of photo groups
+         */
+        function groupPhotosByPage(photos) {
+            const grouped = [];
+            for (let i = 0; i < photos.length; i += PHOTOS_PER_PAGE) {
+                grouped.push(photos.slice(i, i + PHOTOS_PER_PAGE));
+            }
+            return grouped;
+        }
+
+        function renderIntiPembahasanAuto() {
+            const pages = [];
+            let currentRows = [];
+            let pageIndex = 0;
+
+            // container dummy untuk ukur tinggi
+            const measureDiv = document.createElement('div');
+            measureDiv.className = 'measure-page';
+            measureDiv.style.position = 'absolute';
+            measureDiv.style.visibility = 'hidden';
+            document.body.appendChild(measureDiv);
+
+            function buildTable(rows, startNumber) {
+                return `
+                    <h3 class="font-bold text-base mb-2">
+                        Inti Pembahasan :
+                    </h3>
+                     <table class="inti-pembahasan-table text-sm">
+                        <thead>
+                            <tr class="bg-gray-100 font-bold">
+                                <th class="p-2 border border-gray-500 w-12 text-center">No.</th>
+                                <th class="p-2 border border-gray-500 text-center">Uraian Inti Pembahasan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            notulenState.intiPembahasan.forEach((item, i) => {
+                const rowHtml = `
+                    <tr>
+                        <td class="p-2 border border-gray-500 text-center align-top">${i + 1}.</td>
+                        <td class="uraian">
+                            ${item.isi
+                                .split('\n')
+                                .map(p => `<p>${p}</p>`)
+                                .join('')
+                            }    
+                        </td>
+                    </tr>
+                `;
+
+                currentRows.push(rowHtml);
+
+                measureDiv.innerHTML = buildTable(currentRows, i);
+
+                if (measureDiv.scrollHeight > PAGE_HEIGHT_PX) {
+                    // rollback 1 item
+                    currentRows.pop();
+
+                    pages.push(currentRows);
+
+                    currentRows = [rowHtml];
+                    pageIndex++;
+                }
+            });
+
+            if (currentRows.length) {
+                pages.push(currentRows);
+            }
+
+            document.body.removeChild(measureDiv);
+
+            // render final pages
+            const htmlPages = pages.map((rows, index) => `
+                <div class="notulen-page">
+                    ${buildTable(rows, index)}
+                    ${index === pages.length - 1 ? renderPengesahan() : ''}
+                </div>
+            `);
+
+            return htmlPages.join('');
+    }
+
+function renderPengesahan() {
+    return `
+    <div class="pengesahan-block relative mt-12">
+
+        <!-- STEMPEL TENGAH -->
+        <img 
+            src="${STAMP_URL}" 
+            alt="Stempel MGBK SMP"
+            class="absolute left-1/2 transform -translate-x-1/2 opacity-80"
+            style="top:20px; width:180px;"
+        >
+
+        <div class="flex justify-between relative z-10">
+
+            <!-- KIRI : GALIH -->
+            <div class="text-center w-1/2">
+                <p>Mengetahui,<br><span class="font-bold">KETUA MGBK SMP</span></p>
+
+                <!-- SPACER pengganti TTD Galih -->
+                <div style="height:90px;"></div>
+
+                <p class="font-bold">G A L I H</p>
+                <p class="font-bold">PENATA MUDA TINGKAT I</p>
+                <p class="font-bold">NIP. 199305242019031009</p>
+            </div>
+
+            <!-- KANAN : WINDAH -->
+            <div class="text-center w-1/2">
+                <p>
+                    Balikpapan, 13 Desember 2025<br>
+                    <span class="font-bold">SEKRETARIS II MGBK SMP</span>
+                </p>
+
+                <!-- AREA TTD WINDAH -->
+                <div style="height:90px;">
+                    <img 
+                        src="${SIGNATURE_URL}" 
+                        alt="TTD Windah"
+                        class="mx-auto"
+                        style="width:130px;"
+                    >
+                </div>
+
+                <p class="font-bold">WINDAH AYU SANU, S.Pd.</p>
+                <p class="font-bold">AHLI PERTAMA</p>
+                <p class="font-bold">NIP. 199609092022122001</p>
+            </div>
+
+        </div>
+    </div>
+    `;
+}
+
+        // --- Render Functions ---
+
+        function renderNotulen() {
+            const previewDiv = document.getElementById('documentPreview');
+            const formattedDate = formatTanggal(notulenState.tanggal);
+
+            // ----------------------------------------------------
+            // 1. KONTEN HALAMAN 1 (Data Pertemuan & Susunan Kegiatan) - Tampilkan Kop Surat
+            // ----------------------------------------------------
+            const page1Content = `
+                <div id="page-1-content-print" class="notulen-page">
+                    ${getKopSuratHtml(true)}
+                    
+                    <h1 class="header-title text-center text-gray-800">
+                        NOTULEN PERTEMUAN MGBK SMP NEGERI DAN SWASTA KOTA BALIKPAPAN
+                    </h1>
+                    
+                    <!-- Tabel Data Pertemuan -->
+                    <table class="w-full text-sm notulen-table mb-8">
+                        <tr><td style="width: 25%;font-weight: bold;">Hari dan Tanggal</td><td style="width: 5%;">:</td><td style="width: 70%;">${formattedDate || '...'}</td></tr>
+                        <tr><td style="font-weight: bold;">Tempat</td><td>:</td><td>${notulenState.tempat}</td></tr>
+                        <tr><td style="font-weight: bold;">Waktu</td><td>:</td><td>${notulenState.waktu.replace(':', '.')} WITA s/d selesai</td></tr>
+                        <tr>
+                            <td style="font-weight: bold;">Dihadiri oleh</td>
+                            <td>:</td>
+                            <td><ul class="numbered-list m-0 p-0">${getDihadiriOlehText(notulenState.tempat)}</ul></td>
+                        </tr>
+                        <tr><td style="font-weight: bold;">Tema</td><td>:</td><td>${notulenState.tema || '...'}</td></tr>
+                        <tr><td style="font-weight: bold;">Pemateri</td><td>:</td>
+                            <td><ul class="list-none m-0 p-0 space-y-1">${notulenState.pemateri.map((p, i) => `<li class="text-justify-custom">${p.nama || '...' } (${p.keterangan || '...'})</li>`).join('')}</ul></td>
+                        </tr>
+                        <tr><td style="font-weight: bold;">Pembawa Acara</td><td>:</td><td>${notulenState.pembawaAcara.nama || '...'} (${notulenState.pembawaAcara.asal})</td></tr>
+                        <tr><td style="font-weight: bold;">Pembaca Doa</td><td>:</td><td>${notulenState.pembacaDoa.nama || '...'} (${notulenState.pembacaDoa.asal})</td></tr>
+                        <tr><td style="font-weight: bold;">Notulis Pertemuan</td><td>:</td><td>${NOTULIS.nama} (${NOTULIS.sekolah})</td></tr>
+                        <tr>
+                            <td style="font-weight: bold;">Susunan Kegiatan</td>
+                            <td>:</td>
+                            <td><ul class="numbered-list m-0 p-0">${getSusunanAcara(notulenState.tambahanSusunan)}</ul></td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            
+            // ----------------------------------------------------
+            // 2. KONTEN HALAMAN 2 (Inti Pembahasan + Tanda Tangan) - HILANGKAN Kop Surat
+            // ----------------------------------------------------
+            const page2Content = `
+                <div id="page-2-content-print">
+                    ${renderIntiPembahasanAuto()}
+                </div>
+            `;
+
+            // ----------------------------------------------------
+            // 3. KONTEN LAMPIRAN FOTO (Pemisahan per 6 foto)
+            // ----------------------------------------------------
+            let photosContentHtml = '';
+            
+            if (notulenState.lampiranPhotos.length > 0) {
+                const photoGroups = groupPhotosByPage(notulenState.lampiranPhotos);
+
+                photoGroups.forEach((group, pageIndex) => {
+                    const pageId = `lampiran-photos-content-${pageIndex + 1}`; 
+                    
+                    // Menghitung berapa banyak foto yang sudah terlampir (untuk penomoran)
+                    const startIndex = pageIndex * PHOTOS_PER_PAGE;
+
+                    photosContentHtml += `
+                        <div id="${pageId}" class="notulen-page lampiran-page mt-[-1px] print:mt-0">
+                            ${getKopSuratHtml(true)} <!-- MUNCULKAN KOP SURAT DI SINI -->
+                            
+                            <!-- JUDUL DOKUMENTASI DENGAN REDUKSI SPASI: pb-1 mb-2 -->
+                            <div class="text-sm font-bold text-center text-gray-800 border-b pb-1 mb-2">
+                                DOKUMENTASI PERTEMUAN MGBK SMP NEGERI DAN SWASTA KOTA BALIKPAPAN<br>
+                                <span class="font-normal">(${formattedDate || '...'})</span>
+                                <p class="text-xs font-normal mt-1">(Halaman Lampiran ${pageIndex + 1} dari ${photoGroups.length})</p>
+                            </div>
+                            
+                            <!-- TATA LETAK 2 KOLOM x 3 BARIS (Total 6 Foto - Menggunakan gap-1) -->
+                           <div class="photo-grid-container">
+                                ${group.map((photo, index) => `
+                                    <div class="photo-grid-item w-full flex flex-col items-center col-span-1">
+                                        <!-- Menggunakan shadow-lg agar bingkai foto lebih menonjol -->
+                                        <img src="${photo.url}" alt="Foto Lampiran ${startIndex + index + 1}" class="rounded-md border border-gray-300 shadow-lg">
+                                        <!-- Menjaga margin keterangan foto minimal (mt-1) -->
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Gabungkan semua konten. Pemisahan halaman diatur oleh generatePdf().
+            previewDiv.innerHTML = page1Content + page2Content + photosContentHtml;
+        }
+
+        // --- Form Initialization and Handlers ---
+
+        function populateSelects() {
+            const selects = ['tempat', 'pembawaAcaraAsal', 'pembacaDoaAsal'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.innerHTML = SCHOOLS.map(school => 
+                        `<option value="${school}">${school}</option>`
+                    ).join('');
+                }
+            });
+
+            // Set default values from state
+            document.getElementById('tempat').value = notulenState.tempat;
+            document.getElementById('pembawaAcaraAsal').value = notulenState.pembawaAcara.asal;
+            document.getElementById('pembacaDoaAsal').value = notulenState.pembacaDoa.asal;
+        }
+
+        function initDihadiriCheckboxes() {
+            const container = document.getElementById('dihadiriCheckboxes');
+            
+            // Generate checkboxes based on DIHADIRI_OPTIONS
+            container.innerHTML = DIHADIRI_OPTIONS.map(option => `
+                <div class="flex items-center">
+                    <input id="${option.id}" name="dihadiri" type="checkbox" value="${option.value}" data-group="${option.exclusiveGroup}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                    <label for="${option.id}" class="ml-3 text-sm text-gray-700">${option.label}</label>
+                </div>
+            `).join('');
+
+            // Set initial state from notulenState
+            document.getElementById('pendidikan').checked = notulenState.dihadiriOleh.pendidikan;
+            document.getElementById('kepala').checked = notulenState.dihadiriOleh.kepala;
+            document.getElementById('wakilKepala').checked = notulenState.dihadiriOleh.wakilKepala;
+            document.getElementById('koordinatorUrusan').checked = notulenState.dihadiriOleh.koordinatorUrusan;
+
+            container.addEventListener('change', (e) => {
+                if (e.target.name === 'dihadiri' && e.target.type === 'checkbox') {
+                    const id = e.target.id;
+                    const group = e.target.dataset.group;
+                    const isChecked = e.target.checked;
+
+                    // Update state
+                    notulenState.dihadiriOleh[id] = isChecked;
+
+                    // Handle mutual exclusion for 'Sekolah' group
+                    if (group === 'Sekolah' && isChecked) {
+                        ['kepala', 'wakilKepala', 'koordinatorUrusan'].filter(otherId => otherId !== id).forEach(otherId => {
+                            if (notulenState.dihadiriOleh[otherId]) {
+                                notulenState.dihadiriOleh[otherId] = false;
+                                document.getElementById(otherId).checked = false;
+                            }
+                        });
+                    }
+                    renderNotulen();
+                }
+            });
+        }
+
+        // Dynamic Input Handlers
+        function setupDynamicInputs(containerId, stateKey, addBtnId, templateFn, maxChar = 200) {
+            const container = document.getElementById(containerId);
+            const addButton = document.getElementById(addBtnId);
+
+            const renderInputs = () => {
+                container.innerHTML = notulenState[stateKey].map((item, index) => 
+                    templateFn(item, index, maxChar, stateKey)
+                ).join('');
+                
+                // Add listeners to new inputs
+                container.querySelectorAll('input, textarea').forEach(input => {
+                    input.addEventListener('input', (e) => {
+                        const index = parseInt(e.target.dataset.index);
+                        const field = e.target.dataset.field;
+                        // For textareas, update the value directly
+                        notulenState[stateKey][index][field] = e.target.value;
+                        renderNotulen();
+                    });
+                });
+                container.querySelectorAll('.remove-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const index = parseInt(e.target.closest('button').dataset.index);
+                        notulenState[stateKey].splice(index, 1);
+                        renderInputs();
+                    });
+                });
+                renderNotulen();
+            };
+
+            addButton.addEventListener('click', () => {
+                const newItem = stateKey === 'pemateri' ? { nama: '', keterangan: '' } : { isi: '' };
+                notulenState[stateKey].push(newItem);
+                renderInputs();
+            });
+
+            renderInputs(); // Initial render
+        }
+
+        // Templates for dynamic inputs
+        const pemateriTemplate = (item, index, maxChar) => `
+            <div class="flex flex-col border-b pb-3 pt-1 relative group">
+                <button type="button" class="remove-btn absolute top-1 right-1 text-red-400 hover:text-red-600 transition duration-150 p-1 rounded-full opacity-0 group-hover:opacity-100" data-index="${index}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <label class="text-xs font-medium text-gray-600">Nama Pemateri ${index + 1} (Maks ${maxChar} Karakter)</label>
+                <input type="text" data-index="${index}" data-field="nama" value="${item.nama}" maxlength="${maxChar}" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2 text-sm">
+                <label class="text-xs font-medium text-gray-600 mt-2">Keterangan (Maks ${maxChar} Karakter)</label>
+                <input type="text" data-index="${index}" data-field="keterangan" value="${item.keterangan}" maxlength="${maxChar}" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2 text-sm">
+            </div>
+        `;
+
+        const intiPembahasanTemplate = (item, index, maxChar) => `
+            <div class="flex flex-col border-b pb-3 pt-1 relative group">
+                <button type="button" class="remove-btn absolute top-1 right-1 text-red-400 hover:text-red-600 transition duration-150 p-1 rounded-full opacity-0 group-hover:opacity-100" data-index="${index}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <label class="text-xs font-medium text-gray-600">Poin Pembahasan Utama Item ${index + 1}</label>
+                <textarea rows="4" data-index="${index}" data-field="isi" maxlength="${maxChar}" 
+                    placeholder="${index + 1}. Masukkan detail inti pembahasan di sini (Maks ${maxChar} karakter)."
+                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm border p-2 text-sm">${item.isi}</textarea>
+            </div>
+        `;
+
+        // --- Photo/Lampiran Handlers ---
+
+        function handlePhotoUpload(e) {
+            const files = Array.from(e.target.files);
+            
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const newPhoto = {
+                        id: crypto.randomUUID(),
+                        url: event.target.result,
+                        name: file.name
+                    };
+                    notulenState.lampiranPhotos.push(newPhoto);
+                    renderPhotoThumbs();
+                    renderNotulen();
+                };
+                reader.readAsDataURL(file);
+            });
+            // Clear the file input to allow re-uploading the same file
+            e.target.value = '';
+        }
+
+        window.removePhoto = function(id) {
+            notulenState.lampiranPhotos = notulenState.lampiranPhotos.filter(photo => photo.id !== id);
+            renderPhotoThumbs();
+            renderNotulen();
+        }
+
+        function renderPhotoThumbs() {
+            const container = document.getElementById('photoPreviewThumbs');
+            const countElement = document.getElementById('photoCount');
+            
+            container.innerHTML = notulenState.lampiranPhotos.map(photo => `
+                <div class="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+                    <img src="${photo.url}" alt="Lampiran" class="w-full h-full object-cover">
+                    <button type="button" onclick="removePhoto('${photo.id}')" class="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl text-xs hover:bg-red-700">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/24/24/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            `).join('');
+
+            countElement.textContent = `Total ${notulenState.lampiranPhotos.length} foto terlampir.`;
+            countElement.classList.toggle('hidden', notulenState.lampiranPhotos.length === 0);
+        }
+        
+        // --- Core Listener Setup ---
+
+        function setupListeners() {
+            const form = document.getElementById('notulenForm');
+
+            // Generic Text/Select/Date/Time Input Handler
+            form.querySelectorAll('input[type="date"], input[type="time"], select, textarea, input[type="text"]').forEach(input => {
+                // Ignore dynamic inputs, they are handled separately
+                if (!input.dataset.index && input.id && input.id !== 'kopSurat' && input.id !== 'lampiranFoto' ) { 
+                    input.addEventListener('input', (e) => {
+                        const id = e.target.id;
+                        let value = e.target.value;
+                        
+                        // Update state based on ID
+                        if (id === 'tanggal') {
+                            notulenState.tanggal = value;
+                        } else if (id === 'tempat') {
+                            notulenState.tempat = value;
+                        } else if (id === 'waktu') {
+                            notulenState.waktu = value;
+                            document.getElementById('waktuPreview').textContent = `${value.replace(':', '.')} WITA s/d selesai`;
+                        } else if (id === 'tema') {
+                            notulenState.tema = value;
+                        } else if (id === 'pembawaAcaraNama') {
+                            notulenState.pembawaAcara.nama = value;
+                        } else if (id === 'pembawaAcaraAsal') {
+                            notulenState.pembawaAcara.asal = value;
+                        } else if (id === 'pembacaDoaNama') {
+                            notulenState.pembacaDoa.nama = value;
+                        } else if (id === 'pembacaDoaAsal') {
+                            notulenState.pembacaDoa.asal = value;
+                        }
+                        
+                        renderNotulen();
+                    });
+                }
+            });
+
+            // Tambahan Kegiatan Checkbox Handler
+            document.getElementById('tambahanKegiatanCheckboxes').addEventListener('change', (e) => {
+                if (e.target.name === 'tambahanKegiatan' && e.target.type === 'checkbox') {
+                    const id = e.target.id;
+                    const isChecked = e.target.checked;
+                    
+                    if (id === 'halalBihalal') {
+                        notulenState.tambahanSusunan.halalBihalal = isChecked;
+                    } else if (id === 'cinderamata') {
+                        notulenState.tambahanSusunan.cinderamata = isChecked;
+                    }
+                    renderNotulen();
+                }
+            });
+
+            // Kop Surat Upload
+            document.getElementById('kopSurat').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        notulenState.kopSuratURL = event.target.result;
+                        renderNotulen();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Lampiran Foto Upload
+            document.getElementById('lampiranFoto').addEventListener('change', handlePhotoUpload);
+
+            // PDF Download Button
+            document.getElementById('downloadPdfBtn').addEventListener('click', generatePdf);
+        }
+
+        // --- PDF Generation (Logic ensures strict page breaks) ---
+
+        async function generatePdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: F4_FORMAT
+            });
+
+            const pages = document.querySelectorAll('.notulen-page');
+            let first = true;
+
+            for (const page of pages) {
+                if (!first) doc.addPage();
+
+            const canvas = await html2canvas(page, {
+                scale: 4,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'JPEG', 0, 0, F4_WIDTH_MM, F4_HEIGHT_MM);
+
+            first = false;
+        }
+
+        doc.save(`Notulen MGBK SMP (${formatTanggal(notulenState.tanggal)}).pdf`);
+    }
+
+
+        // --- Initial App Load ---
+
+        window.onload = function() {
+            // Set default date for input field
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('tanggal').value = notulenState.tanggal || today;
+            
+            // Set input values from state
+            document.getElementById('tema').value = notulenState.tema;
+            document.getElementById('waktu').value = notulenState.waktu;
+            // Set initial preview text for time
+            document.getElementById('waktuPreview').textContent = `${notulenState.waktu.replace(':', '.')} WITA s/d selesai`;
+
+            document.getElementById('pembawaAcaraNama').value = notulenState.pembawaAcara.nama;
+            document.getElementById('pembacaDoaNama').value = notulenState.pembacaDoa.nama;
+
+            // Initialize all dynamic parts
+            populateSelects();
+            initDihadiriCheckboxes();
+            setupDynamicInputs('pemateriContainer', 'pemateri', 'addPemateriBtn', pemateriTemplate, 200);
+            // Tambahkan karakter yang sangat banyak untuk memastikan konten tumpah ke halaman kedua
+            setupDynamicInputs('intiPembahasanContainer', 'intiPembahasan', 'addIntiPembahasanBtn', intiPembahasanTemplate, 3000); 
+            setupListeners();
+            
+            // Initial render
+            renderPhotoThumbs(); // Tampilkan preview foto default
+            renderNotulen();
+        };
+
+    </script>
+</body>
+</html>
