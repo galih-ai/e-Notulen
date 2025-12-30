@@ -242,6 +242,76 @@ td.uraian {
 
 </style>
 </head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ================= LANDING PAGE ================= -->
+<div id="landingPage" class="w-screen h-screen flex">
+
+    <!-- KIRI HITAM -->
+    <div class="w-1/2 bg-black flex items-center justify-center">
+        <h1 class="text-white text-7xl font-bold">Gr.</h1>
+    </div>
+
+    <!-- KANAN PUTIH -->
+    <div class="w-1/2 bg-white flex items-center justify-center">
+        <div class="w-full max-w-sm">
+
+            <h2 class="text-lg font-semibold text-gray-800 mb-6">
+                Selamat datang Ibu Windah Ayu Sanu, S.Pd.
+            </h2>
+            <h2 class="text-lg text-gray-800 mb-6">
+                Silahkan login untuk mengelola e-Notulen MGBK SMP. Selamat bekerja.
+            </h2>
+
+            <div class="space-y-4">
+                <input
+                    id="username"
+                    type="text"
+                    placeholder="Username"
+                    class="w-full border rounded-lg p-3"
+                />
+
+                <input
+                    id="password"
+                    type="password"
+                    placeholder="Password"
+                    class="w-full border rounded-lg p-3"
+                />
+
+                <button
+                    onclick="login()"
+                    class="w-full bg-black text-white py-3 rounded-lg font-semibold hover:bg-gray-800"
+                >
+                    Masuk Aplikasi
+                </button>
+<div className="mt-8 pt-6 border-t border-slate-100 text-center text-[9px] text-slate-400">
+  <span>&copy; 2026</span>
+  <span className="ml-2">Developed by Galih MGBK SMP</span>
+</div>
+                <p id="loginError" class="text-red-600 text-sm hidden">
+                    Username atau password salah
+                </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================= APLIKASI e-NOTULEN ================= -->
+<div id="appPage" class="hidden">
+
+    <!-- TOMBOL LOGOUT -->
+    <div class="w-full bg-gray-800 text-white px-6 py-3 flex justify-between items-center">
+        <span class="font-semibold">e-Notulen MGBK SMP</span>
+        <button
+            onclick="logout()"
+            class="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700"
+        >
+            Logout
+        </button>
+    </div>
+
+<!-- ================= APLIKASI e-NOTULEN ================= -->
 <body class="bg-gray-100 min-h-screen p-4 sm:p-8">
 
     <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0">
@@ -249,7 +319,7 @@ td.uraian {
         <!-- Panel Input (Kiri) -->
         <div class="input-panel w-full lg:w-1/3 bg-white p-6 rounded-xl shadow-lg h-full sticky top-8">
             <h2 class="text-xl font-bold mb-4 text-indigo-700">e-Notulen MGBK SMP</h2>
-            <p class="text-sm text-gray-600 mb-6">Developed by Galih MGBK SMP Balikpapan</p>
+            <p class="text-sm text-gray-600 mb-6">Form Pengisian</p>
 
             <!-- FORM START -->
             <form id="notulenForm" class="space-y-4">
@@ -1151,5 +1221,29 @@ function renderPengesahan() {
         };
 
     </script>
+<script>
+function login() {
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+    const error = document.getElementById('loginError');
+
+    if (user === 'Sekretaris_Andalan' && pass === 'W1nd4h') {
+        document.getElementById('landingPage').classList.add('hidden');
+        document.getElementById('appPage').classList.remove('hidden');
+        error.classList.add('hidden');
+    } else {
+        error.classList.remove('hidden');
+    }
+}
+
+function logout() {
+    document.getElementById('appPage').classList.add('hidden');
+    document.getElementById('landingPage').classList.remove('hidden');
+
+    // reset form
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+}
+</script>
 </body>
 </html>
