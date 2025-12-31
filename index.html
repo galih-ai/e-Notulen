@@ -1222,24 +1222,51 @@ function renderPengesahan() {
 
     </script>
 <script>
-function login() {
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyaBYaEucEmFu9ZZABsCvNlfFGNfwFNas_NW5VSvxN3i09uC06Ipqfo-gUl7qAmHc7s/exec";
+
+async function login() {
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
     const error = document.getElementById('loginError');
+    const loginBtn = document.querySelector('button[onclick="login()"]');
 
-    if (user === 'Sekretaris_Andalan' && pass === 'W1nd4h') {
-        document.getElementById('landingPage').classList.add('hidden');
-        document.getElementById('appPage').classList.remove('hidden');
-        error.classList.add('hidden');
-    } else {
+    // Beri indikasi loading
+    loginBtn.innerText = "Mengecek...";
+    loginBtn.disabled = true;
+
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain', 
+            },
+            body: JSON.stringify({ username: user, password: pass }),
+            redirect: 'follow'
+        });
+
+        const data = await response.json();
+
+        if (data.result === 'success') {
+            document.getElementById('landingPage').classList.add('hidden');
+            document.getElementById('appPage').classList.remove('hidden');
+            error.classList.add('hidden');
+        } else {
+            error.innerText = "Username atau password salah";
+            error.classList.remove('hidden');
+        }
+    } catch (err) {
+        console.error(err);
+        error.innerText = "Terjadi kesalahan koneksi. Pastikan Deployment Apps Script sudah benar.";
         error.classList.remove('hidden');
+    } finally {
+        loginBtn.innerText = "Masuk Aplikasi";
+        loginBtn.disabled = false;
     }
 }
 
 function logout() {
     document.getElementById('appPage').classList.add('hidden');
     document.getElementById('landingPage').classList.remove('hidden');
-
     // reset form
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
