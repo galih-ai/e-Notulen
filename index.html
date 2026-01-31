@@ -240,6 +240,24 @@ td.uraian {
     word-spacing: normal
 }
 
+/* Style khusus untuk tanda tangan agar bisa besar tanpa merusak layout */
+.ttd-container {
+    position: relative;
+    width: 200px; /* Sesuaikan dengan lebar kolom tanda tangan */
+    height: 100px; /* Memberikan ruang kosong untuk tanda tangan melayang */
+    margin: 0 auto;
+}
+
+.ttd-img-new {
+    position: absolute;
+    height: 150px; /* Ukuran besar yang Anda inginkan */
+    width: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%); /* Posisi tepat di tengah container */
+    z-index: 10;
+    pointer-events: none; /* Agar tidak mengganggu seleksi teks */
+}
 </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -298,10 +316,9 @@ td.uraian {
 </div>
 
 <!-- ================= APLIKASI e-NOTULEN ================= -->
-<div id="appPage" class="hidden">
+<div id="appPage" class="hidden bg-gray-100 min-h-screen">
 
-    <!-- TOMBOL LOGOUT -->
-    <div class="w-full bg-gray-800 text-white px-6 py-3 flex justify-between items-center">
+    <div class="w-full bg-gray-800 text-white px-6 py-3 flex justify-between items-center sticky top-0 z-50 shadow-md">
         <span class="font-semibold">e-Notulen MGBK SMP</span>
         <button
             onclick="logout()"
@@ -311,16 +328,15 @@ td.uraian {
         </button>
     </div>
 
-<!-- ================= APLIKASI e-NOTULEN ================= -->
-<body class="bg-gray-100 min-h-screen p-4 sm:p-8">
+<div class="p-4 sm:p-8">
 
-    <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0">
-        
-        <!-- Panel Input (Kiri) -->
-        <div class="input-panel w-full lg:w-1/3 bg-white p-6 rounded-xl shadow-lg h-full sticky top-8">
-            <h2 class="text-xl font-bold mb-4 text-indigo-700">e-Notulen MGBK SMP</h2>
-            <p class="text-sm text-gray-600 mb-6">Form Pengisian</p>
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row gap-0">
+            
+            <div class="input-panel w-full lg:w-1/3 bg-white p-6 rounded-xl shadow-lg h-full sticky top-20">
+                <h2 class="text-xl font-bold mb-4 text-indigo-700">e-Notulen MGBK SMP</h2>
+                <p class="text-sm text-gray-600 mb-6">Form Pengisian</p>
 
+                <form id="notulenForm" class="space-y-4">
             <!-- FORM START -->
             <form id="notulenForm" class="space-y-4">
 
@@ -452,12 +468,12 @@ td.uraian {
         </div>
 
         <!-- Panel Preview (Kanan) -->
-        <div class="notulen-container w-full lg:w-2/3">
-            <div id="documentPreview" class="bg-white shadow-xl border border-gray-300 rounded-lg">
-                <!-- Konten Notulen Akan Dimuat di Sini -->
-            </div>
+<div class="notulen-container w-full lg:w-2/3">
+            <div id="documentPreview" class="bg-white shadow-xl border border-gray-300 rounded-lg min-h-[800px]">
+                </div>
         </div>
-    </div>
+
+    </div> </div> </div>
 
     <script>
         // Data Sekolah
@@ -481,6 +497,7 @@ td.uraian {
         // Data Checkbox Dihadiri Oleh
         const DIHADIRI_OPTIONS = [
             { id: 'pendidikan', label: 'Bidang PSMP Disdikbud', value: 'Bidang PSMP Disdikbud', exclusiveGroup: 'none' },
+            { id: 'pembina', label: 'Kepala Sekolah Pembina MGBK', value: 'Kepala Sekolah Pembina MGBK', exclusiveGroup: 'none' },
             { id: 'kepala', label: 'Kepala (sesuai Tempat)', value: 'Kepala', exclusiveGroup: 'Sekolah' },
             { id: 'wakilKepala', label: 'Wakil Kepala (sesuai Tempat)', value: 'Wakil Kepala', exclusiveGroup: 'Sekolah' },
             { id: 'koordinatorUrusan', label: 'Koordinator Urusan (sesuai Tempat)', value: 'Koordinator Urusan', exclusiveGroup: 'Sekolah' },
@@ -494,6 +511,7 @@ td.uraian {
             waktu: '13:30',
             dihadiriOleh: {
                 pendidikan: false, 
+                pembina: false, // <--- TAMBAHKAN BARIS INI
                 kepala: false, 
                 wakilKepala: false,
                 koordinatorUrusan: false,
@@ -516,7 +534,7 @@ td.uraian {
         const NOTULIS = { nama: 'WINDAH AYU SANU, S.Pd.', nip: '199609092022212001', jabatan: 'SEKRETARIS II MGBK SMP', sekolah: 'SMP Negeri 4 Balikpapan' };
         const KETUA = { nama: 'G A L I H', nip: '199305242019031009', jabatan: 'KETUA MGBK SMP', pangkat: 'PENATA MUDA TINGKAT I' };
         const STAMP_URL = 'https://i.postimg.cc/MnWcJXnD/STEMPEL-MGBK.png';
-        const SIGNATURE_URL = 'https://i.postimg.cc/0M8sN3Ds/Windah-TTD.png';
+        const SIGNATURE_URL = 'https://i.postimg.cc/cH34FGJr/Windah_TTD.png';
 
         // Konstanta untuk perhitungan PDF (dalam mm)
         const F4_WIDTH_MM = 215.9;
@@ -542,52 +560,57 @@ td.uraian {
             return `${dayName}, ${day} ${month} ${year}`;
         }
 
-        function getDihadiriOlehText(tempat) {
-            const list = [];
-            
-            // Komponen Eksklusif Sekolah (Kepala/Wakil/Koordinator)
-            let sekolahEksklusifText = '';
-            let sekolahRole = '';
-            if (notulenState.dihadiriOleh.kepala) {
-                sekolahRole = 'Kepala';
-            } else if (notulenState.dihadiriOleh.wakilKepala) {
-                sekolahRole = 'Wakil Kepala';
-            } else if (notulenState.dihadiriOleh.koordinatorUrusan) {
-                sekolahRole = 'Koordinator Urusan';
-            }
-            if (sekolahRole) {
-                 sekolahEksklusifText = `${sekolahRole} ${tempat}`;
-            }
-            
-            // Urutan Dihadiri Oleh:
-            
-            // 1. Bidang PSMP Disdikbud (Jika dipilih)
-            if (notulenState.dihadiriOleh.pendidikan) {
-                list.push('Bidang PSMP Disdikbud');
-            }
-            
-            // 2. Pengawas Pendamping MGBK
-            list.push("Pengawas Pendamping MGBK");
+ function getDihadiriOlehText(tempat) {
+    const list = [];
+    
+    // Logika Komponen Eksklusif Sekolah (Kepala/Wakil/Koordinator)
+    let sekolahEksklusifText = '';
+    let sekolahRole = '';
+    if (notulenState.dihadiriOleh.kepala) {
+        sekolahRole = 'Kepala';
+    } else if (notulenState.dihadiriOleh.wakilKepala) {
+        sekolahRole = 'Wakil Kepala';
+    } else if (notulenState.dihadiriOleh.koordinatorUrusan) {
+        sekolahRole = 'Koordinator Urusan';
+    }
+    if (sekolahRole) {
+         sekolahEksklusifText = `${sekolahRole} ${tempat}`;
+    }
+    
+    // --- URUTAN TAMPILAN (LOGIKA BARU) ---
+    
+    // 1. Bidang PSMP Disdikbud (Jika dipilih)
+    if (notulenState.dihadiriOleh.pendidikan) {
+        list.push('Bidang PSMP Disdikbud');
+    }
+    
+    // 2. Pengawas Pendamping MGBK (Selalu Muncul)
+    list.push("Pengawas Pembina MGBK");
 
-            // 3. Kepala/Wakil/Koordinator Sekolah (Jika ada yang dipilih) - POSISI BARU
-            if (sekolahEksklusifText) {
-                list.push(sekolahEksklusifText);
-            }
+    // 3. Kepala Sekolah Pembina MGBK (Jika dipilih) - POSISI BARU
+    if (notulenState.dihadiriOleh.pembina) {
+        list.push("Kepala Sekolah Pembina MGBK");
+    }
 
-            // 4. Ketua MGBK
-            list.push("Ketua MGBK");
+    // 4. Kepala/Wakil/Koordinator Sekolah (Jika ada yang dipilih)
+    if (sekolahEksklusifText) {
+        list.push(sekolahEksklusifText);
+    }
 
-            // 5. Pengurus Inti dan Koordinator Bidang MGBK
-            list.push("Pengurus Inti dan Koordinator Bidang MGBK");
+    // 5. Ketua MGBK
+    list.push("Ketua MGBK");
 
-            // 6. Anggota MGBK
-            list.push("Anggota MGBK");
-            
-            // Menghasilkan daftar dengan penomoran manual
-            return list.map((item, index) => 
-                `<li>${index + 1}. ${item}</li>`
-            ).join('');
-        }
+    // 6. Pengurus Inti dan Koordinator Bidang MGBK
+    list.push("Pengurus Inti dan Koordinator Bidang MGBK");
+
+    // 7. Anggota MGBK
+    list.push("Anggota MGBK");
+
+    // Menghasilkan daftar dengan penomoran otomatis (1, 2, 3...)
+    return list.map((item, index) => 
+        `<li>${index + 1}. ${item}</li>`
+    ).join('');
+}
 
         function getSusunanAcara(tambahanSusunan) {
             // Susunan kegiatan tetap sesuai permintaan pengguna
@@ -769,51 +792,75 @@ td.uraian {
     }
 
 function renderPengesahan() {
+    // 1. URL Tanda Tangan Ketua
+    const SIGNATURE_KETUA = "https://i.postimg.cc/Kcrf1PGL/20260121_073837blue.png";
+
+    // 2. LOGIKA FORMAT TANGGAL OTOMATIS
+    let tanggalTtd = "..."; // Default jika kosong
+    if (notulenState.tanggal) {
+        const date = new Date(notulenState.tanggal);
+        const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        const day = date.getDate();
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        // Format: 13 Desember 2025
+        tanggalTtd = `${day} ${month} ${year}`;
+    }
+
     return `
     <div class="pengesahan-block relative mt-12">
 
-        <!-- STEMPEL TENGAH -->
         <img 
             src="${STAMP_URL}" 
             alt="Stempel MGBK SMP"
-            class="absolute left-1/2 transform -translate-x-1/2 opacity-80"
-            style="top:20px; width:180px;"
+            class="absolute left-1/2 transform -translate-x-1/2 opacity-80 z-20"
+            style="top:10px; width:180px; pointer-events: none;"
         >
 
         <div class="flex justify-between relative z-10">
 
-            <!-- KIRI : GALIH -->
-            <div class="text-center w-1/2">
+            <div class="text-center w-1/2 relative"> 
                 <p>Mengetahui,<br><span class="font-bold">KETUA MGBK SMP</span></p>
 
-                <!-- SPACER pengganti TTD Galih -->
                 <div style="height:90px;"></div>
 
-                <p class="font-bold">G A L I H</p>
-                <p class="font-bold">PENATA MUDA TINGKAT I</p>
-                <p class="font-bold">NIP. 199305242019031009</p>
+                <img 
+                    src="${SIGNATURE_KETUA}" 
+                    alt="TTD Ketua"
+                    class="absolute left-1/2 transform -translate-x-1/2 z-30"
+                    style="
+                        top: 50px;
+                        height: 110px;
+                        width: auto;
+                        pointer-events: none;
+                    "
+                >
+
+                <p class="font-bold relative z-40">Gr. GALIH ATMAJI</p>
+                <p class="font-bold relative z-40">PENATA MUDA TINGKAT I</p>
             </div>
 
-            <!-- KANAN : WINDAH -->
-            <div class="text-center w-1/2">
+<div class="text-center w-1/2 relative">
                 <p>
-                    Balikpapan, 13 Desember 2025<br>
+                    Balikpapan, ${tanggalTtd}<br>
                     <span class="font-bold">SEKRETARIS II MGBK SMP</span>
                 </p>
 
-                <!-- AREA TTD WINDAH -->
-                <div style="height:90px;">
-                    <img 
-                        src="${SIGNATURE_URL}" 
-                        alt="TTD Windah"
-                        class="mx-auto"
-                        style="width:130px;"
-                    >
-                </div>
+                <div style="height:90px;"></div>
 
-                <p class="font-bold">WINDAH AYU SANU, S.Pd.</p>
-                <p class="font-bold">AHLI PERTAMA</p>
-                <p class="font-bold">NIP. 199609092022122001</p>
+                <img 
+                    src="${SIGNATURE_URL}" 
+                    alt="TTD Windah"
+                    class="absolute left-1/2 transform -translate-x-1/2 z-30"
+                    style="
+                        width: 130px; 
+                        top: 50px;   /* <--- UBAH ANGKA INI UNTUK NAIK/TURUN */
+                        pointer-events: none;
+                    "
+                >
+
+                <p class="font-bold relative z-40">WINDAH AYU SANU</p>
+                <p class="font-bold relative z-40">AHLI PERTAMA</p>
             </div>
 
         </div>
@@ -936,45 +983,51 @@ function renderPengesahan() {
             document.getElementById('pembacaDoaAsal').value = notulenState.pembacaDoa.asal;
         }
 
-        function initDihadiriCheckboxes() {
-            const container = document.getElementById('dihadiriCheckboxes');
-            
-            // Generate checkboxes based on DIHADIRI_OPTIONS
-            container.innerHTML = DIHADIRI_OPTIONS.map(option => `
-                <div class="flex items-center">
-                    <input id="${option.id}" name="dihadiri" type="checkbox" value="${option.value}" data-group="${option.exclusiveGroup}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                    <label for="${option.id}" class="ml-3 text-sm text-gray-700">${option.label}</label>
-                </div>
-            `).join('');
+function initDihadiriCheckboxes() {
+    const container = document.getElementById('dihadiriCheckboxes');
+    
+    // Generate checkboxes based on DIHADIRI_OPTIONS
+    container.innerHTML = DIHADIRI_OPTIONS.map(option => `
+        <div class="flex items-center">
+            <input id="${option.id}" name="dihadiri" type="checkbox" value="${option.value}" data-group="${option.exclusiveGroup}" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+            <label for="${option.id}" class="ml-3 text-sm text-gray-700">${option.label}</label>
+        </div>
+    `).join('');
 
-            // Set initial state from notulenState
-            document.getElementById('pendidikan').checked = notulenState.dihadiriOleh.pendidikan;
-            document.getElementById('kepala').checked = notulenState.dihadiriOleh.kepala;
-            document.getElementById('wakilKepala').checked = notulenState.dihadiriOleh.wakilKepala;
-            document.getElementById('koordinatorUrusan').checked = notulenState.dihadiriOleh.koordinatorUrusan;
+    // Set initial state from notulenState
+    document.getElementById('pendidikan').checked = notulenState.dihadiriOleh.pendidikan;
+    
+    // --- TAMBAHKAN BARIS INI ---
+    document.getElementById('pembina').checked = notulenState.dihadiriOleh.pembina;
+    // ---------------------------
 
-            container.addEventListener('change', (e) => {
-                if (e.target.name === 'dihadiri' && e.target.type === 'checkbox') {
-                    const id = e.target.id;
-                    const group = e.target.dataset.group;
-                    const isChecked = e.target.checked;
+    document.getElementById('kepala').checked = notulenState.dihadiriOleh.kepala;
+    document.getElementById('wakilKepala').checked = notulenState.dihadiriOleh.wakilKepala;
+    document.getElementById('koordinatorUrusan').checked = notulenState.dihadiriOleh.koordinatorUrusan;
 
-                    // Update state
-                    notulenState.dihadiriOleh[id] = isChecked;
+    container.addEventListener('change', (e) => {
+        // ... (sisanya sama, tidak perlu diubah) ...
+        if (e.target.name === 'dihadiri' && e.target.type === 'checkbox') {
+            const id = e.target.id;
+            const group = e.target.dataset.group;
+            const isChecked = e.target.checked;
 
-                    // Handle mutual exclusion for 'Sekolah' group
-                    if (group === 'Sekolah' && isChecked) {
-                        ['kepala', 'wakilKepala', 'koordinatorUrusan'].filter(otherId => otherId !== id).forEach(otherId => {
-                            if (notulenState.dihadiriOleh[otherId]) {
-                                notulenState.dihadiriOleh[otherId] = false;
-                                document.getElementById(otherId).checked = false;
-                            }
-                        });
+            // Update state
+            notulenState.dihadiriOleh[id] = isChecked;
+
+            // Handle mutual exclusion for 'Sekolah' group
+            if (group === 'Sekolah' && isChecked) {
+                ['kepala', 'wakilKepala', 'koordinatorUrusan'].filter(otherId => otherId !== id).forEach(otherId => {
+                    if (notulenState.dihadiriOleh[otherId]) {
+                        notulenState.dihadiriOleh[otherId] = false;
+                        document.getElementById(otherId).checked = false;
                     }
-                    renderNotulen();
-                }
-            });
+                });
+            }
+            renderNotulen();
         }
+    });
+}
 
         // Dynamic Input Handlers
         function setupDynamicInputs(containerId, stateKey, addBtnId, templateFn, maxChar = 200) {
@@ -1229,48 +1282,97 @@ async function login() {
     const pass = document.getElementById('password').value;
     const error = document.getElementById('loginError');
     const loginBtn = document.querySelector('button[onclick="login()"]');
+    
+    // Elemen Loader
+    const loader = document.getElementById('global-loader');
+    const loaderText = document.getElementById('loader-text');
 
-    // Beri indikasi loading
-    loginBtn.innerText = "Mengecek...";
+    // 1. RESET ERROR & TAMPILKAN LOADER
+    error.classList.add('hidden');
+    loaderText.innerText = "Memverifikasi akun...";
+    loader.classList.remove('hidden');
     loginBtn.disabled = true;
 
     try {
+        // Tambahkan sedikit jeda buatan (800ms) agar teks "Memverifikasi" sempat terbaca
+        // dan tidak terkesan "glitch" jika internet sangat cepat
+        await new Promise(r => setTimeout(r, 800));
+
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain', 
-            },
+            headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({ username: user, password: pass }),
             redirect: 'follow'
         });
-
         const data = await response.json();
-
+        
         if (data.result === 'success') {
+            // 2. JIKA SUKSES: Ubah Teks -> Tunggu -> Pindah Halaman
+            loaderText.innerText = "Selamat bekerja, Ibu Windah...";
+            
+            // Tahan selama 2 detik agar pesan "Selamat bekerja" terbaca jelas
+            await new Promise(r => setTimeout(r, 2000));
+
+            // Pindah ke Halaman Aplikasi
             document.getElementById('landingPage').classList.add('hidden');
             document.getElementById('appPage').classList.remove('hidden');
-            error.classList.add('hidden');
+            
+            // Sembunyikan loader setelah halaman siap
+            loader.classList.add('hidden');
+            
         } else {
+            // 3. JIKA GAGAL (Password Salah)
+            // Sembunyikan loader segera agar user bisa melihat pesan error merah
+            loader.classList.add('hidden');
+            
             error.innerText = "Username atau password salah";
             error.classList.remove('hidden');
         }
     } catch (err) {
+        // 4. JIKA ERROR KONEKSI
         console.error(err);
-        error.innerText = "Terjadi kesalahan koneksi. Pastikan Deployment Apps Script sudah benar.";
+        loader.classList.add('hidden');
+        
+        error.innerText = "Terjadi kesalahan koneksi atau Script URL bermasalah.";
         error.classList.remove('hidden');
     } finally {
-        loginBtn.innerText = "Masuk Aplikasi";
+        // Kembalikan tombol agar bisa diklik lagi (jika gagal)
         loginBtn.disabled = false;
     }
 }
 
 function logout() {
-    document.getElementById('appPage').classList.add('hidden');
-    document.getElementById('landingPage').classList.remove('hidden');
-    // reset form
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
+    // Elemen Loader
+    const loader = document.getElementById('global-loader');
+    const loaderText = document.getElementById('loader-text');
+
+    // 1. TAMPILKAN LOADER LOGOUT
+    loaderText.innerText = "Terima kasih, INFO...";
+    loader.classList.remove('hidden');
+
+    // 2. BERI JEDA WAKTU (2 Detik) AGAR TEKS TERBACA
+    setTimeout(() => {
+        // Proses Logout Asli
+        document.getElementById('appPage').classList.add('hidden');
+        document.getElementById('landingPage').classList.remove('hidden');
+        
+        // Reset Form
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        
+        // 3. SEMBUNYIKAN LOADER
+        loader.classList.add('hidden');
+        
+    }, 2000); 
 }
 </script>
+
+<div id="global-loader" class="fixed inset-0 bg-black/90 z-[100] hidden flex flex-col items-center justify-center transition-opacity duration-300">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-6 shadow-[0_0_20px_rgba(59,130,246,0.5)]"></div>
+    
+    <p id="loader-text" class="text-white text-2xl font-bold tracking-wider animate-pulse text-center">
+        Memuat...
+    </p>
+</div>
 </body>
 </html>
